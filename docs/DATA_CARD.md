@@ -1,22 +1,18 @@
-# Data Card - Multi Agent Orchestrator
+# Data Card - Multi-Agent Orchestrator
 
-## Sources & provenance
-- Where each dataset came from (links), collection method, dates.
+This project ships no datasets. It processes a single goal string at runtime and produces a
+blackboard of subtasks, results, reviews, and messages.
 
-## Licensing
-- License of each source and whether usage complies. Redistribution terms.
+## runtime data
 
-## Composition
-- Size, format, fields, language(s), modality.
-
-## Preprocessing & filtering
-- Cleaning, dedup, PII handling, filtering rules.
-
-## Contamination checks
-- How you ensured evaluation data is not in training / few-shot context.
-
-## Known biases & gaps
-- Representation gaps, label noise, sampling bias.
+- **Input:** a natural-language goal provided by the caller.
+- **Produced:** subtasks (from the planner), worker outputs, critic reviews, and an ordered
+  message log, all held in memory for the duration of a run.
+- **Sensitivity:** whatever the caller places in the goal or that model-backed agents
+  generate. Treat the blackboard as potentially sensitive if real agents are attached.
 
 ## Ethical considerations
-- Consent, sensitive content, privacy.
+
+The built-in agents are synthetic and deterministic and generate no external content. Users
+attaching model-backed agents take on the data governance of those models' inputs and
+outputs.
