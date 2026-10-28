@@ -20,7 +20,9 @@ _GOAL = "research the topic and then draft an outline and then write the report"
 
 
 def _bench_orchestration(num_runs: int) -> float:
-    orchestrator = Orchestrator(KeywordPlanner(chain_dependencies=True), [EchoWorker()], LengthCritic())
+    orchestrator = Orchestrator(
+        KeywordPlanner(chain_dependencies=True), [EchoWorker()], LengthCritic()
+    )
     start = time.perf_counter()
     for _ in range(num_runs):
         orchestrator.run(_GOAL)
