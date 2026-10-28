@@ -56,6 +56,7 @@ class Orchestrator:
         critic: Critic,
         *,
         max_retries: int = 2,
+        validate_plan: bool = True,
     ) -> None:
         if not workers:
             raise ValueError("at least one worker is required")
@@ -65,11 +66,16 @@ class Orchestrator:
         self._workers = list(workers)
         self._critic = critic
         self._max_retries = max_retries
+        self._validate_plan = validate_plan
 
     def run(self, goal: str) -> OrchestrationResult:
         """Orchestrate the agents to accomplish ``goal``."""
         board = Blackboard(goal)
         subtasks = self._planner.plan(goal)
+        if self._validate_plan:
+            from multi_agent_orchestrator.graph import validate_plan
+
+            validate_plan(subtasks)
         board.set_plan(subtasks)
         board.post(Message(role=Role.PLANNER, content=f"planned {len(board.subtasks)} subtasks"))
 
