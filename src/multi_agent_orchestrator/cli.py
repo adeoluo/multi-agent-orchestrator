@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 from collections.abc import Sequence
+from pathlib import Path
 
 from multi_agent_orchestrator import __version__
 from multi_agent_orchestrator.agents import (
@@ -47,6 +48,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     run_parser = subparsers.add_parser("run", help="Orchestrate agents over a goal.")
     run_parser.add_argument("goal", nargs="?", default=_DEFAULT_GOAL, help="The goal.")
+    run_parser.add_argument("--metrics", action="store_true", help="Print run metrics.")
+    run_parser.add_argument(
+        "--json", type=Path, default=None, metavar="PATH", help="Write the run as JSON."
+    )
     run_parser.set_defaults(handler=_handle_run)
 
     compare_parser = subparsers.add_parser(
@@ -63,6 +68,15 @@ def _handle_run(args: argparse.Namespace) -> int:
     print(f"Completed: {result.completed} ({result.num_subtasks} subtasks)\n")
     for message in result.blackboard.messages:
         print(f"  [{message.role}] {message.content}")
+    if args.metrics:
+        from multi_agent_orchestrator.metrics import run_metrics
+
+        print(f"\n{run_metrics(result).format()}")
+    if args.json is not None:
+        from multi_agent_orchestrator.trace import run_to_json
+
+        args.json.write_text(run_to_json(result), encoding="utf-8")
+        print(f"\nWrote run to {args.json}")
     return 0 if result.completed else 1
 
 
