@@ -44,13 +44,34 @@ no progress can be made. See the [ADRs](docs/adr/) for key choices.
 
 - **Blackboard** - the shared source of truth: goal, plan, results, reviews, and an ordered
   message log. It computes which subtasks are ready and whether the run is complete.
-- **Planner** - decomposes a goal into `Subtask`s, which may declare dependencies.
-- **Workers** - execute one subtask each, given the results of its dependencies as context.
+- **Planners (3)** - `KeywordPlanner` (splits on connectives), `TemplatePlanner`
+  (role-prefixed chains), and `ExplicitPlanner` (a fixed plan).
+- **Workers** - execute one subtask each with dependency context; `ToolWorker` runs a
+  named tool, so workers can take real actions, not just transform text.
 - **Critic** - approves or rejects a worker's output, driving the retry loop.
 - **Orchestrator** - schedules, dispatches, and records; bounded iterations guarantee
-  termination. It never does the work itself.
+  termination, and it validates the plan (missing-dependency and **cycle detection**)
+  before executing.
+- **Consensus** - `ConsensusOrchestrator` runs several workers on the *same* task and
+  aggregates by `majority_vote` or `unanimous`, a redundancy pattern complementing the
+  division-of-labor orchestrator.
+- **Shared memory** - a namespaced `SharedMemory` scratchpad for agents.
+- **Observability** - `run_metrics` (attempts, retries, completion rate) and lossless
+  `run_to_json` serialization of a whole run.
 - **Baseline** - a single-agent runner for contrast, so the value of coordination is
   concrete.
+
+## Performance
+
+> Measured with `uv run python benchmarks/benchmark.py`.
+
+| Operation | Throughput |
+|---|---:|
+| Orchestrated 3-subtask runs (plan, dispatch, review) | ~46,000 runs / sec |
+| 3-worker consensus decisions | ~332,000 runs / sec |
+
+Coordination is pure in-memory bookkeeping, so the orchestrator's overhead is negligible
+relative to the agent work it coordinates.
 
 ## Demonstration
 
