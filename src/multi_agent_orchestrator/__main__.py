@@ -1,13 +1,8 @@
-"""Entrypoint placeholder; the full CLI is added with the orchestrator."""
+"""Enable ``python -m multi_agent_orchestrator`` to invoke the CLI."""
 
 from __future__ import annotations
 
-from multi_agent_orchestrator import __version__
-
-
-def main() -> None:
-    print(f"multi-agent-orchestrator v{__version__}")
-
+from multi_agent_orchestrator.cli import main
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
