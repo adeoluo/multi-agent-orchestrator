@@ -90,9 +90,7 @@ Use the library directly:
 from multi_agent_orchestrator.orchestrator import Orchestrator
 from multi_agent_orchestrator.agents import KeywordPlanner, EchoWorker, LengthCritic
 
-orchestrator = Orchestrator(
-    KeywordPlanner(chain_dependencies=True), [EchoWorker()], LengthCritic()
-)
+orchestrator = Orchestrator(KeywordPlanner(chain_dependencies=True), [EchoWorker()], LengthCritic())
 result = orchestrator.run("do research and then write it up")
 print(result.completed, result.final_outputs())
 ```
