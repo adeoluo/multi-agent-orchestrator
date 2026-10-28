@@ -1,34 +1,44 @@
-# Evaluation Report - Multi Agent Orchestrator
+# Evaluation Report - Multi-Agent Orchestrator
 
-> Reproduce everything here with `make evaluation`. Report mean ± 95% confidence interval over N seeds.
+> Reproduce with `python -m multi_agent_orchestrator compare`. The built-in agents are
+> deterministic, so the output is exact and stable.
 
 ## Setup
-- **Task / dataset:** name, size, split.
-- **Metrics:** definition of each metric and why it's the right one.
-- **Graders:** exact-match / model-graded (which model, prompt) / human.
-- **Baselines:** what you compare against.
-- **Seeds:** list. **Hardware:** e.g., 1×A100 80GB. **Cost:** $X. **Runtime:** Yh.
 
-## Headline results
+- **Goal:** "research the subject and then draft an outline and then write the report".
+- **Planner:** KeywordPlanner with dependency chaining (each step depends on the prior).
+- **Workers:** EchoWorker and UppercaseWorker, dispatched deterministically by subtask id.
+- **Critic:** LengthCritic (approves non-trivial output).
 
-| Metric | This project | Baseline | SOTA / ref | Δ vs baseline |
-|---|---:|---:|---:|---:|
-| Primary (↑) | **0.00 ± 0.00** | 0.00 | 0.00 | +0.00 |
-| Latency p95 (ms, ↓) | **0** | 0 | - | - |
-| Cost / 1k ($, ↓) | **0.00** | 0.00 | - | - |
+## Structure comparison
 
-## Ablations
+| Approach | Passes | Decomposition | Review |
+|---|---|---|---|
+| Single-agent | 1 | none | none |
+| Multi-agent | 3 | planned, dependency-ordered | per subtask |
 
-| Variant | Metric | Δ | Notes |
-|---|---:|---:|---|
-| Full | 0.00 | - | reference |
-| - component X | 0.00 | −0.00 | shows X matters |
+## Multi-agent run
 
-## LLM-as-judge validation (if used)
-- Agreement with human labels (Cohen's κ / accuracy), bias controls, sample size.
+```text
+[planner] planned 3 subtasks
+[worker]  RESEARCH THE SUBJECT
+[critic]  approved
+[worker]  (given task-0) done: draft an outline
+[critic]  approved
+[worker]  (given task-1) done: write the report
+[critic]  approved
+```
 
-## Error analysis
-- Top failure categories with counts and representative examples.
+Each worker receives its predecessor's result as context (`given task-0`), demonstrating
+dependency-aware scheduling, and every output passes critic review.
+
+## Coordination properties (tested)
+
+- Dependencies are respected: a subtask is dispatched only once its dependencies are
+  complete.
+- Rejected work is retried with feedback and recovers; persistently rejected work leaves
+  the run incomplete rather than looping forever (bounded iterations).
 
 ## Reproducibility
-- Exact command, configuration hash, dataset version, W&B/MLflow run URL.
+
+Everything is offline and deterministic; the output above regenerates exactly.

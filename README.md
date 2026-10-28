@@ -1,88 +1,133 @@
-<h1 align="center">Multi Agent Orchestrator</h1>
+<h1 align="center">Multi-Agent Orchestrator</h1>
 
 <p align="center">
-  <em>A multi-agent orchestrator from scratch: a planner decomposes a task, workers execute subtasks, and a critic verifies, coordinated over a shared blackboard</em>
+  <em>A multi-agent orchestrator built from scratch: a planner decomposes a goal, specialized workers execute subtasks, and a critic verifies, coordinated over a shared blackboard.</em>
 </p>
 
 <p align="center">
-  <a href="../../actions"><img alt="CI" src="https://img.shields.io/badge/CI-passing-brightgreen"></a>
-  <img alt="Coverage" src="https://img.shields.io/badge/coverage-90%25-brightgreen">
-  <img alt="Python" src="https://img.shields.io/badge/python-3.11+-blue">
+  <a href="https://github.com/adeoluo/multi-agent-orchestrator/actions/workflows/ci.yml"><img alt="Continuous integration" src="https://github.com/adeoluo/multi-agent-orchestrator/actions/workflows/ci.yml/badge.svg"></a>
+  <img alt="Coverage" src="https://img.shields.io/badge/coverage-95%25-brightgreen">
+  <img alt="Python" src="https://img.shields.io/badge/python-3.11%20%7C%203.12-blue">
+  <img alt="Type checked" src="https://img.shields.io/badge/mypy-strict-blue">
+  <img alt="Runtime dependencies" src="https://img.shields.io/badge/runtime%20deps-0-brightgreen">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
-  <a href="DEMONSTRATION_URL"><img alt="Demonstration" src="https://img.shields.io/badge/demonstration-live-6366F1"></a>
 </p>
 
 ---
 
 ## Motivation
 
-What problem does this solve, and why does it matter? What's the insight or hard part?
-Who is this for? (2 - 4 sentences - lead with the "so what".)
+A single agent doing everything in one pass is hard to steer and hard to verify. The
+multi-agent pattern - a **planner** that decomposes, specialized **workers** that execute,
+and a **critic** that reviews - decomposes the problem into inspectable, checkable steps.
+This project builds that pattern **from first principles** on a **blackboard
+architecture**, with **zero runtime dependencies** and a fully deterministic, offline test
+suite.
+
+The key design choice is that agents never call each other directly. They coordinate only
+through a shared **blackboard**, which keeps them decoupled, makes dependency scheduling
+and progress detection centralized, and renders the entire run an auditable history.
 
 ## Architecture
 
 <p align="center">
-  <img src="docs/architecture/architecture.svg" alt="System architecture" width="760">
+  <img src="docs/architecture/architecture.svg" alt="System architecture" width="720">
 </p>
 
-One paragraph walking through the diagram: the request path, the core components, the
-data stores, and where the model sits. Link to [ADRs](docs/adr/) for key decisions.
+The **orchestrator** runs the loop: it asks the **planner** to decompose the goal into
+subtasks on the **blackboard**, then repeatedly dispatches a **ready** subtask (one whose
+dependencies are complete) to a **worker**, has the **critic** review the result, and marks
+it complete on approval or retries with feedback on rejection - until everything is done or
+no progress can be made. See the [ADRs](docs/adr/) for key choices.
 
-## Results
+## Components
 
-> Every claim is backed by a number. Reproduce with `make evaluation`.
+- **Blackboard** - the shared source of truth: goal, plan, results, reviews, and an ordered
+  message log. It computes which subtasks are ready and whether the run is complete.
+- **Planner** - decomposes a goal into `Subtask`s, which may declare dependencies.
+- **Workers** - execute one subtask each, given the results of its dependencies as context.
+- **Critic** - approves or rejects a worker's output, driving the retry loop.
+- **Orchestrator** - schedules, dispatches, and records; bounded iterations guarantee
+  termination. It never does the work itself.
+- **Baseline** - a single-agent runner for contrast, so the value of coordination is
+  concrete.
 
-| Metric | This project | Baseline | SOTA / reference |
-|---|---:|---:|---:|
-| Primary metric (↑) | **0.00** | 0.00 | 0.00 |
-| Latency p95 (ms, ↓) | **0** | 0 | - |
-| Cost / 1k req ($, ↓) | **0.00** | 0.00 | - |
+## Demonstration
 
-Numbers are mean ± 95% confidence interval over N seeds. Full report: [`docs/EVALUATION_REPORT.md`](docs/EVALUATION_REPORT.md).
+Fully offline, via `python -m multi_agent_orchestrator compare`:
 
-<p align="center"><img src="docs/architecture/demonstration.gif" alt="Demonstration" width="640"></p>
+```text
+Goal: research the subject and then draft an outline and then write the report
+
+Single-agent output:
+  done: research the subject and then draft an outline and then write the report
+
+Multi-agent outputs:
+  [task-0] RESEARCH THE SUBJECT
+  [task-1] (given task-0) done: draft an outline
+  [task-2] (given task-1) done: write the report
+
+single-agent: 1 undifferentiated pass; multi-agent: 3 planned, specialized, reviewed subtasks
+```
+
+The multi-agent run decomposes the goal into three dependency-ordered subtasks; each worker
+sees its predecessor's output (`given task-0`), and every step passes critic review.
 
 ## Quickstart
 
 ```bash
-git clone <repository> && cd Multi Agent Orchestrator
-cp .env.example .env         # add your keys
-make setup                   # install dependencies + pre-commit
-make test                    # run the test suite
-make run                     # run the application entrypoint
+git clone https://github.com/adeoluo/multi-agent-orchestrator.git && cd multi-agent-orchestrator
+make setup                    # install dev tooling + pre-commit hooks
+make all                      # lint + type-check + test
+
+python -m multi_agent_orchestrator run "research the topic and then write the report"
+python -m multi_agent_orchestrator compare
 ```
 
-Or with Docker:
+Use the library directly:
 
-```bash
-docker compose up --build
+```python
+from multi_agent_orchestrator.orchestrator import Orchestrator
+from multi_agent_orchestrator.agents import KeywordPlanner, EchoWorker, LengthCritic
+
+orchestrator = Orchestrator(KeywordPlanner(chain_dependencies=True), [EchoWorker()], LengthCritic())
+result = orchestrator.run("do research and then write it up")
+print(result.completed, result.final_outputs())
 ```
 
 ## Design decisions
 
-- **Why X over Y** - short rationale, link to [ADR](docs/adr/).
-- **Key tradeoff** - what you optimized for and what you gave up.
-
-## Evaluation
-
-How the numbers were produced: datasets, graders, seeds, hardware, cost.
-See [`docs/EVALUATION_REPORT.md`](docs/EVALUATION_REPORT.md) and the experiment dashboard: `W&B_URL`.
+- **Blackboard coordination, not direct agent calls.** A shared workspace decouples the
+  agents, centralizes scheduling and progress detection, and makes the run auditable.
+  ([ADR-0002](docs/adr/0002-blackboard-coordination.md))
+- **Critic-driven retries with bounded iterations.** Rejected work is retried with feedback
+  up to a limit, and total iterations are bounded so the loop always terminates.
+  ([ADR-0003](docs/adr/0003-critic-retry-loop.md))
+- **Structural `Protocol` agents.** Planner, Worker, and Critic are protocols, so
+  deterministic stubs and model-backed agents are interchangeable.
 
 ## Responsible AI
 
-- **Model card:** [`docs/MODEL_CARD.md`](docs/MODEL_CARD.md)
-- **Data card:** [`docs/DATA_CARD.md`](docs/DATA_CARD.md)
-- **Threat model:** [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md)
+- **Model card:** [docs/MODEL_CARD.md](docs/MODEL_CARD.md)
+- **Data card:** [docs/DATA_CARD.md](docs/DATA_CARD.md)
+- **Threat model:** [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md)
 
 ## Limitations
 
-Honest list of what this does **not** do, known failure modes, and where it breaks.
+- The built-in agents are deterministic, offline stubs that demonstrate the coordination
+  mechanics; real planning, execution, and review would use model-backed agents behind the
+  same protocols.
+- Workers run sequentially; parallel dispatch of independent subtasks is a roadmap item.
+- Dependency cycles are not planned (the planner does not emit them); the orchestrator's
+  bounded loop guards against a stuck run rather than validating the graph.
 
 ## Roadmap
 
-- [ ] Next improvement
-- [ ] Stretch goal
+- [ ] Parallel execution of independent ready subtasks
+- [ ] Model-backed planner, worker, and critic adapters
+- [ ] Explicit dependency-graph validation (cycle detection)
 
 ## License
 
-[MIT](LICENSE) · Part of a [24-project AI-engineering portfolio](PORTFOLIO_URL).
+[MIT](LICENSE). Part of a 28-project artificial intelligence engineering portfolio by
+[adeoluo](https://github.com/adeoluo).

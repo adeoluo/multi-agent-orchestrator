@@ -1,5 +1,5 @@
 ---
-title: System Architecture - Multi Agent Orchestrator
+title: System Architecture - Multi-Agent Orchestrator
 config:
   theme: base
   themeVariables:
@@ -11,28 +11,25 @@ config:
     clusterBkg: "#E2E8F0"
     clusterBorder: "#94A3B8"
 ---
-flowchart LR
+flowchart TD
     classDef core     fill:#6366F1,stroke:#1E293B,color:#ffffff,stroke-width:1px;
     classDef data     fill:#10B981,stroke:#1E293B,color:#ffffff,stroke-width:1px;
     classDef external fill:#F59E0B,stroke:#1E293B,color:#1E293B,stroke-width:1px;
-    classDef danger   fill:#EF4444,stroke:#1E293B,color:#ffffff,stroke-width:1px;
 
-    User([User]):::external
+    Goal([Goal]):::external
+    Orchestrator[Orchestrator]:::core
+    Board[(Blackboard)]:::data
 
-    subgraph Application["Application Service"]
-        API[API Layer]:::core
-        Core[Core Engine]:::core
-        Evaluation[Evaluation Harness]:::core
-    end
+    Planner[Planner]:::core
+    Worker[Workers]:::core
+    Critic[Critic]:::core
 
-    Cache[(Semantic Cache)]:::data
-    Store[(Datastore / Index)]:::data
-    LLM{{LLM Provider}}:::external
-
-    User -->|request| API
-    API --> Core
-    Core -->|lookup| Cache
-    Core -->|retrieve| Store
-    Core -->|completion| LLM
-    Core -.->|traces/metrics| Evaluation
-    Core -->|response| User
+    Goal --> Orchestrator
+    Orchestrator -->|1 plan| Planner
+    Planner -->|subtasks| Board
+    Orchestrator -->|2 dispatch ready| Worker
+    Worker -->|results| Board
+    Orchestrator -->|3 review| Critic
+    Critic -->|approve / reject| Board
+    Board -.->|progress| Orchestrator
+    Orchestrator -->|final outputs| Goal
