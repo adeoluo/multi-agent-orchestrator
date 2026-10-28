@@ -1,21 +1,26 @@
-# Threat Model - Multi Agent Orchestrator
+# Threat Model - Multi-Agent Orchestrator
 
 ## Assets
-- What's worth protecting (data, keys, model, user trust, budget).
+
+- Integrity of the coordination (correct scheduling, honest review).
+- Any sensitive content placed on the blackboard by model-backed agents.
 
 ## Trust boundaries
-- Where untrusted input crosses into the system (reference the architecture diagram).
 
-## Threats (STRIDE + LLM-specific)
+- **The goal and all agent outputs are untrusted text** on the blackboard. They are stored
+  and passed between steps, never executed by the framework.
+
+## Threats and mitigations
 
 | Threat | Vector | Impact | Mitigation |
 |---|---|---|---|
-| Prompt injection | Untrusted content in context / tools | Data exfiltration, unsafe actions | Input/output filtering, tool allow-list, least privilege |
-| Jailbreak | Adversarial user prompt | Policy bypass | System-prompt hardening, output classifier, refusal evaluation |
-| Data exfiltration | Model echoes secrets / PII | Privacy breach | Secret scanning, output redaction, no secrets in context |
-| Excessive cost | Unbounded loops / large inputs | $ blowout | Token/step budgets, rate limits, timeouts |
-| Tool abuse | Agent calls dangerous tool | Destructive action | Approval gates, sandboxing, dry-run |
-| Supply chain | Malicious dependency | Code execution | Pinned dependencies, Dependabot, SBOM |
+| Non-terminating run | Critic never approves, or cyclic dependencies | Hang / resource exhaustion | Bounded total iterations; incomplete subtasks reported, not looped forever |
+| Rogue worker action | A side-effecting worker performs a harmful action | Unexpected effects | Built-in workers are pure; users must sandbox and authorize side-effecting workers |
+| Blackboard tampering | A buggy agent corrupts shared state | Wrong results | Immutable record types; the blackboard mediates all writes and records every post |
+| Sensitive data exposure | Model-backed agents write secrets to the blackboard | Data leak if exported | Documented guidance; the blackboard is in-memory and not exported by default |
+| Supply-chain compromise | Malicious dependency | Code execution | Zero runtime dependencies; Dependabot and CodeQL in continuous integration |
 
 ## Residual risk
-- What remains after mitigations and why it's acceptable.
+
+The framework guarantees termination and auditability but cannot vouch for the behavior of
+user-supplied model-backed agents; their safety is the integrator's responsibility.
