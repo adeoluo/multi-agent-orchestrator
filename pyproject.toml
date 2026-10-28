@@ -7,24 +7,24 @@ requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "Adeolu Ogunnoiki" }]
 dependencies = [
-    "pydantic>=2.0",
-    "pydantic-settings>=2.0",
-    "structlog>=24.0",
+    "pydantic>=2.14.1",
+    "pydantic-settings>=2.16.1",
+    "structlog>=26.1.0",
 ]
 
 [project.optional-dependencies]
 # install with: uv sync --extra ml
 ml = [
-    "numpy>=1.26",
-    "torch>=2.2",
+    "numpy>=2.4.6",
+    "torch>=2.14.1",
 ]
 
 [dependency-groups]
 dev = [
-    "ruff>=0.8",
-    "mypy>=1.14",
-    "pytest>=8.0",
-    "pytest-cov>=5.0",
+    "ruff>=0.17.2",
+    "mypy>=2.4.0",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
 ]
 
 [build-system]
