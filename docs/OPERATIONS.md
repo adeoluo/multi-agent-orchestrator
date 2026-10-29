@@ -16,6 +16,8 @@ planner/workers/critic loop over a goal and returns the structured run.
 | Method | Path | Body | Success |
 |---|---|---|---|
 | GET | `/health` | none | status, worker names, planner name |
+| GET | `/ready` | none | readiness of the orchestrator |
+| GET | `/metrics` | none | per-route request, error, and latency metrics (Prometheus text) |
 | POST | `/run` | `{"goal"}` | subtasks, outputs, blackboard messages, completed |
 | POST | `/compare` | `{"goal"}` | single-agent vs multi-agent structure |
 
