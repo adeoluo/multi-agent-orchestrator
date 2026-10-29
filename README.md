@@ -20,7 +20,7 @@
 A single agent doing everything in one pass is hard to steer and hard to verify. The
 multi-agent pattern - a **planner** that decomposes, specialized **workers** that execute,
 and a **critic** that reviews - decomposes the problem into inspectable, checkable steps.
-This project builds that pattern **from first principles** on a **blackboard
+This project builds that pattern **from scratch** on a **blackboard
 architecture**, with **zero runtime dependencies** and a fully deterministic, offline test
 suite.
 
