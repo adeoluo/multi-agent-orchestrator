@@ -127,6 +127,27 @@ print(result.completed, result.final_outputs())
 - **Structural `Protocol` agents.** Planner, Worker, and Critic are protocols, so
   deterministic stubs and model-backed agents are interchangeable.
 
+## Running the service
+
+A dependency-free HTTP service runs the planner/workers/critic loop over a goal:
+
+```bash
+python -m multi_agent_orchestrator serve --port 8000
+
+curl localhost:8000/health
+curl -s -X POST localhost:8000/run -d '{"goal": "summarize the report and then format the output"}'
+curl -s -X POST localhost:8000/compare -d '{"goal": "summarize and format"}'
+```
+
+`POST /run` returns the plan, each worker's output, the critic's reviews, and the full
+blackboard message log; `POST /compare` contrasts the single-agent and multi-agent
+structure. A production-style stress benchmark (`uv run python benchmarks/stress.py`) reports
+throughput and p50/p95/p99 latency; with offline agents a single core serves tens of
+thousands of runs per second, and the service is scaled with processes because the
+pure-Python loop is bound by the global interpreter lock. See the
+[operations guide](docs/OPERATIONS.md), the [scaling and tradeoffs](docs/SCALING.md)
+document, and the [case study](docs/CASE_STUDY.md).
+
 ## Responsible AI
 
 - **Model card:** [docs/MODEL_CARD.md](docs/MODEL_CARD.md)

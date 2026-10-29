@@ -8,28 +8,40 @@ config:
     primaryBorderColor: "#1E293B"
     primaryTextColor: "#1E293B"
     lineColor: "#64748B"
-    clusterBkg: "#E2E8F0"
+    clusterBkg: "#EEF2FF"
     clusterBorder: "#94A3B8"
 ---
-flowchart TD
+flowchart TB
+    classDef edge     fill:#F59E0B,stroke:#1E293B,color:#1E293B,stroke-width:1px;
     classDef core     fill:#6366F1,stroke:#1E293B,color:#ffffff,stroke-width:1px;
     classDef data     fill:#10B981,stroke:#1E293B,color:#ffffff,stroke-width:1px;
-    classDef external fill:#F59E0B,stroke:#1E293B,color:#1E293B,stroke-width:1px;
+    classDef control  fill:#0EA5E9,stroke:#1E293B,color:#ffffff,stroke-width:1px;
+    classDef obs      fill:#CBD5E1,stroke:#1E293B,color:#1E293B,stroke-width:1px;
 
-    Goal([Goal]):::external
-    Orchestrator[Orchestrator]:::core
-    Board[(Blackboard)]:::data
+    Client([Client]):::edge
 
-    Planner[Planner]:::core
-    Worker[Workers]:::core
-    Critic[Critic]:::core
+    subgraph Edge["Service layer (stdlib HTTP, stateless)"]
+        direction TB
+        Router["Router<br/>/health | /run | /compare"]:::core
+        Validate["Validation<br/>bound: goal length"]:::control
+    end
 
-    Goal --> Orchestrator
-    Orchestrator -->|1 plan| Planner
-    Planner -->|subtasks| Board
-    Orchestrator -->|2 dispatch ready| Worker
-    Worker -->|results| Board
-    Orchestrator -->|3 review| Critic
-    Critic -->|approve / reject| Board
-    Board -.->|progress| Orchestrator
-    Orchestrator -->|final outputs| Goal
+    subgraph Orchestrate["Orchestration loop"]
+        direction TB
+        Planner["Planner<br/>goal to subtask graph"]:::core
+        Workers["Workers<br/>echo, uppercase, ..."]:::core
+        Critic["Critic<br/>review before accept"]:::core
+    end
+
+    Blackboard[(Blackboard<br/>subtasks, results, messages)]:::data
+    Trace["Structured run<br/>plan, outputs, message log"]:::obs
+
+    Client -->|JSON request| Router --> Validate
+    Validate -->|goal| Planner
+    Planner -->|subtasks| Blackboard
+    Blackboard -->|ready subtask| Workers
+    Workers -->|result| Critic
+    Critic -->|approved / rejected| Blackboard
+    Blackboard -->|dependencies met| Workers
+    Blackboard -->|final outputs| Router -->|JSON response| Client
+    Blackboard -.-> Trace

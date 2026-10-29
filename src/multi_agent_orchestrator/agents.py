@@ -20,7 +20,8 @@ from dataclasses import dataclass
 
 from multi_agent_orchestrator.core.types import Review, Subtask, WorkerResult
 
-_SPLIT = re.compile(r"\s+(?:and then|then|and|;)\s+", re.IGNORECASE)
+_WHITESPACE = re.compile(r"\s+")
+_SPLIT = re.compile(r" (?:and then|then|and|;) ", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -30,9 +31,12 @@ class KeywordPlanner:
     chain_dependencies: bool = False
 
     def plan(self, goal: str) -> Sequence[Subtask]:
-        parts = [part.strip() for part in _SPLIT.split(goal) if part.strip()]
+        # Collapse whitespace first so the split runs in linear time on untrusted
+        # input (no ambiguous whitespace quantifiers to backtrack over).
+        normalized = _WHITESPACE.sub(" ", goal).strip()
+        parts = [part.strip() for part in _SPLIT.split(normalized) if part.strip()]
         if not parts:
-            parts = [goal.strip()]
+            parts = [normalized]
         subtasks: list[Subtask] = []
         for index, part in enumerate(parts):
             depends = (f"task-{index - 1}",) if self.chain_dependencies and index > 0 else ()
