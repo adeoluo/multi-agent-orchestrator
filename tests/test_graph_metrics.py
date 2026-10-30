@@ -98,6 +98,57 @@ def test_run_metrics_format() -> None:
     assert "completed" in metrics.format()
 
 
+def test_run_metrics_counts_retries_when_dependents_are_skipped() -> None:
+    # Regression: retries = worker_attempts - total undercounted when some
+    # subtasks were never attempted (dependents blocked after an upstream
+    # failure). Count attempts per attempted subtask instead.
+    from multi_agent_orchestrator.core.types import Review
+
+    class _AlwaysReject:
+        def review(self, subtask, result):  # type: ignore[no-untyped-def]
+            return Review(subtask_id=subtask.id, approved=False, feedback="no")
+
+    orchestrator = Orchestrator(
+        KeywordPlanner(chain_dependencies=True),
+        [EchoWorker()],
+        _AlwaysReject(),
+        max_retries=3,
+    )
+    result = orchestrator.run("do research and then write it up and then publish")
+    metrics = run_metrics(result)
+    # Only task-0 was attempted (its dependents were blocked), so every attempt
+    # beyond the first is a retry. The old formula (attempts - subtask count)
+    # undercounted because it subtracted subtasks that were never attempted.
+    assert metrics.completed_subtasks == 0
+    assert metrics.retries == metrics.worker_attempts - 1
+    assert metrics.retries > max(0, metrics.worker_attempts - metrics.total_subtasks)
+
+
+def test_worker_dispatch_is_deterministic_across_hash_seeds() -> None:
+    # Regression: dispatch used hash(subtask.id), which is salted per process.
+    import os
+    import subprocess
+    import sys
+
+    snippet = (
+        "from multi_agent_orchestrator.orchestrator import Orchestrator;"
+        "from multi_agent_orchestrator.agents import "
+        "KeywordPlanner, EchoWorker, UppercaseWorker, LengthCritic;"
+        "o=Orchestrator(KeywordPlanner(chain_dependencies=True),"
+        "[EchoWorker(),UppercaseWorker()],LengthCritic());"
+        "print(sorted(o.run('do research and then write it up and then publish')"
+        ".final_outputs().items()))"
+    )
+    outputs = set()
+    for seed in ("0", "1", "2"):
+        env = {**os.environ, "PYTHONHASHSEED": seed}
+        completed = subprocess.run(
+            [sys.executable, "-c", snippet], capture_output=True, text=True, env=env, check=True
+        )
+        outputs.add(completed.stdout.strip())
+    assert len(outputs) == 1
+
+
 # --------------------------------------------------------------------------- #
 # Orchestrator plan validation
 # --------------------------------------------------------------------------- #
