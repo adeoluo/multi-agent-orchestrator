@@ -73,6 +73,27 @@ no progress can be made. See the [ADRs](docs/adr/) for key choices.
 Coordination is pure in-memory bookkeeping, so the orchestrator's overhead is negligible
 relative to the agent work it coordinates.
 
+### Scale
+
+`benchmarks/scale.py` orchestrates goals that decompose into progressively longer
+dependency chains, reporting per-goal latency, subtask throughput, peak memory (stdlib
+`tracemalloc`, measured in a separate pass), and the critic-approved completion rate.
+Measured on this machine (`uv run python benchmarks/scale.py`):
+
+| Subtasks | Sec/goal | Subtasks/sec | Peak MiB | Completed |
+|---:|---:|---:|---:|---:|
+| 25 | 0.0016 | 15,261 | 0.02 | 1.00 |
+| 50 | 0.0043 | 11,659 | 0.04 | 1.00 |
+| 100 | 0.0169 | 5,906 | 0.08 | 1.00 |
+| 200 | 0.0579 | 3,452 | 0.18 | 1.00 |
+
+Every subtask still completes (completion rate 1.00), but subtask throughput falls
+super-linearly because the scheduler rescans the blackboard for ready subtasks on each
+iteration -- the honest cost of a simple, auditable control loop. These numbers are from
+synthetic goals on a pure-Python loop with offline deterministic agents: they measure
+coordination overhead, **not** real agent latency, and are **not** a comparison against a
+hosted multi-agent framework.
+
 ## Demonstration
 
 Fully offline, via `python -m multi_agent_orchestrator compare`:
