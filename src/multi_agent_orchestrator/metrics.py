@@ -8,6 +8,7 @@ rate. These are the numbers to watch when tuning a planner, workers, or the crit
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 
 from multi_agent_orchestrator.core.types import Role
@@ -58,8 +59,11 @@ def run_metrics(result: OrchestrationResult) -> RunMetrics:
     )
     total = len(board.subtasks)
     completed = sum(1 for subtask in board.subtasks if board.is_complete(subtask.id))
-    # Retries are attempts beyond the first for each subtask.
-    retries = max(0, worker_attempts - total)
+    # Retries are attempts beyond the first for each subtask that was attempted.
+    # Subtracting the subtask count undercounts when some subtasks are never
+    # attempted (for example dependents skipped after an upstream failure).
+    attempts_per_subtask: Counter[str | None] = Counter(m.subtask_id for m in worker_messages)
+    retries = sum(max(0, count - 1) for count in attempts_per_subtask.values())
     return RunMetrics(
         total_subtasks=total,
         completed_subtasks=completed,

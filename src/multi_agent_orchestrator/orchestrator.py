@@ -16,6 +16,7 @@ so the agents stay single-purpose and the whole run is an auditable blackboard h
 
 from __future__ import annotations
 
+import zlib
 from dataclasses import dataclass
 
 from multi_agent_orchestrator.core.agents import Critic, Planner, Worker
@@ -127,8 +128,10 @@ class Orchestrator:
         return False  # exhausted retries without approval
 
     def _select_worker(self, subtask: Subtask) -> Worker:
-        # Round-robin by subtask id hash keeps dispatch deterministic and balanced.
-        index = hash(subtask.id) % len(self._workers)
+        # Round-robin by a stable hash of the subtask id. Python's built-in hash
+        # of a string is salted per process, so it cannot be used for dispatch
+        # that must be deterministic and reproducible across runs; crc32 is stable.
+        index = zlib.crc32(subtask.id.encode("utf-8")) % len(self._workers)
         return self._workers[index]
 
 
