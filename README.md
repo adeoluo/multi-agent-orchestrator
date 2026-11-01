@@ -60,6 +60,10 @@ no progress can be made. See the [ADRs](docs/adr/) for key choices.
   `run_to_json` serialization of a whole run.
 - **Baseline** - a single-agent runner for contrast, so the value of coordination is
   concrete.
+- **Comparison** - an honest single-agent vs multi-agent measurement (worker-call cost, raw
+  coverage, and independently verified coverage) over a suite of multi-step goals.
+- **Durable execution** - checkpoint the blackboard after every completed subtask and resume
+  an interrupted orchestration from the last checkpoint to a byte-identical result.
 
 ## Performance
 
@@ -94,6 +98,57 @@ synthetic goals on a pure-Python loop with offline deterministic agents: they me
 coordination overhead, **not** real agent latency, and are **not** a comparison against a
 hosted multi-agent framework.
 
+## Durable execution and crash recovery
+
+The blackboard **is** the entire run state -- plan, results, reviews, and the ordered message
+log -- so checkpointing it after every completed subtask makes an orchestration durable.
+`run_durable` drives the orchestrator one subtask at a time, writing a JSON checkpoint after
+each; if the process is interrupted, the checkpoint on disk is a consistent prefix of the work.
+`resume_durable` restores the board and finishes the remaining subtasks. Because the agents are
+deterministic and scheduling is stable, a resumed run reaches a state **byte-for-byte identical**
+to one that was never interrupted:
+
+```text
+$ python -m multi_agent_orchestrator durable
+Interrupted: interrupted after 1 of 3 subtasks
+Checkpoint on disk: interrupted: 1/3 subtasks checkpointed
+Resumed: completed=True (3 subtasks)
+Resumed outputs identical to uninterrupted run: True
+```
+
+The test suite proves this at **every** crash point: for a three-subtask goal, interrupting
+after 1, 2, or 3 subtasks and resuming yields a blackboard whose full snapshot equals the
+uninterrupted run's. `Blackboard.snapshot()` / `Blackboard.restore()` do the lossless
+serialization.
+
+## Single-agent baseline vs multi-agent
+
+`benchmarks/compare.py` runs the *same* goals through the single-agent baseline and the
+planner/workers/critic orchestrator and measures the trade-off honestly (reproduce with
+`uv run python benchmarks/compare.py`). **worker calls** is the cost; **raw coverage** is the
+fraction of a goal's parts mentioned anywhere in the output; **verified coverage** is the
+fraction delivered as an independently *reviewed*, approved unit.
+
+| Parts | Single calls | Multi calls | Raw coverage S / M | Verified coverage S / M | Multi completed |
+|---:|---:|---:|:---:|:---:|:---:|
+| 1 | 1 | 1 | 1.00 / 1.00 | 0.00 / 1.00 | yes |
+| 2 | 1 | 2 | 1.00 / 1.00 | 0.00 / 1.00 | yes |
+| 3 | 1 | 3 | 1.00 / 1.00 | 0.00 / 1.00 | yes |
+| 5 | 1 | 5 | 1.00 / 1.00 | 0.00 / 1.00 | yes |
+| 8 | 1 | 8 | 1.00 / 1.00 | 0.00 / 1.00 | yes |
+| **totals** | **5** | **19** | tie | **0 / 19** | — |
+
+**Honest reading.** On these decomposable goals the two approaches have **identical raw
+coverage** -- a single pass that echoes the whole goal already mentions every part -- and the
+orchestrator costs **3.8x the worker calls** (19 vs 5). Coordination does **not** add raw
+content here. Its payoff is **verification and per-part reliability**: the multi-agent runs
+delivered 19 independently reviewed sub-deliverables versus 0 for the single agent, because the
+baseline has no critic. On a one-part goal the two are equivalent and coordination is pure
+overhead. The win from coordination is structural (decomposition + review), not raw text, and
+it is paid for in extra worker calls -- which is exactly the trade-off to weigh before reaching
+for a multi-agent design. These are deterministic offline agents, so the numbers measure
+coordination structure and cost, **not** model quality.
+
 ## Demonstration
 
 Fully offline, via `python -m multi_agent_orchestrator compare`:
@@ -124,6 +179,8 @@ make all                      # lint + type-check + test
 
 python -m multi_agent_orchestrator run "research the topic and then write the report"
 python -m multi_agent_orchestrator compare
+python -m multi_agent_orchestrator measure   # single-agent vs multi-agent cost/coverage
+python -m multi_agent_orchestrator durable    # interrupt a run, then resume it identically
 ```
 
 Use the library directly:
@@ -189,6 +246,7 @@ document, and the [case study](docs/CASE_STUDY.md).
 
 - [ ] Parallel execution of independent ready subtasks
 - [ ] Model-backed planner, worker, and critic adapters
+- [x] Durable execution: checkpoint the blackboard and resume an interrupted run
 - [ ] Explicit dependency-graph validation (cycle detection)
 
 ## License

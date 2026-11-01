@@ -12,10 +12,12 @@ ordered message log.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Any
 
 from multi_agent_orchestrator.core.types import (
     Message,
     Review,
+    Role,
     Subtask,
     WorkerResult,
 )
@@ -100,3 +102,88 @@ class Blackboard:
     def all_complete(self) -> bool:
         """True when every planned subtask is complete."""
         return bool(self._subtasks) and all(self.is_complete(sid) for sid in self._subtasks)
+
+    # -- durable serialization --------------------------------------------- #
+    def snapshot(self) -> dict[str, Any]:
+        """Serialize the entire board (plan, results, reviews, log) to a JSON-ready dict."""
+        return {
+            "goal": self._goal,
+            "subtasks": [
+                {
+                    "id": subtask.id,
+                    "description": subtask.description,
+                    "depends_on": list(subtask.depends_on),
+                    "metadata": subtask.metadata,
+                }
+                for subtask in self._subtasks.values()
+            ],
+            "results": [
+                {
+                    "subtask_id": result.subtask_id,
+                    "worker": result.worker,
+                    "output": result.output,
+                    "success": result.success,
+                }
+                for result in self._results.values()
+            ],
+            "reviews": [
+                {
+                    "subtask_id": review.subtask_id,
+                    "approved": review.approved,
+                    "feedback": review.feedback,
+                }
+                for review in self._reviews.values()
+            ],
+            "messages": [
+                {
+                    "role": message.role.value,
+                    "content": message.content,
+                    "subtask_id": message.subtask_id,
+                    "metadata": message.metadata,
+                }
+                for message in self._messages
+            ],
+        }
+
+    @classmethod
+    def restore(cls, snapshot: dict[str, Any]) -> Blackboard:
+        """Rebuild a board from :meth:`snapshot`, preserving plan, progress, and log order."""
+        board = cls(snapshot["goal"])
+        board.set_plan(
+            [
+                Subtask(
+                    id=entry["id"],
+                    description=entry["description"],
+                    depends_on=tuple(entry.get("depends_on", ())),
+                    metadata=entry.get("metadata") or {},
+                )
+                for entry in snapshot["subtasks"]
+            ]
+        )
+        for entry in snapshot["results"]:
+            board.record_result(
+                WorkerResult(
+                    subtask_id=entry["subtask_id"],
+                    worker=entry["worker"],
+                    output=entry["output"],
+                    success=entry.get("success", True),
+                )
+            )
+        for entry in snapshot["reviews"]:
+            board.record_review(
+                Review(
+                    subtask_id=entry["subtask_id"],
+                    approved=entry["approved"],
+                    feedback=entry.get("feedback", ""),
+                )
+            )
+        board._messages = [
+            Message(
+                role=Role(entry["role"]),
+                content=entry["content"],
+                subtask_id=entry.get("subtask_id"),
+                metadata=entry.get("metadata") or {},
+            )
+            for entry in snapshot["messages"]
+        ]
+        return board
