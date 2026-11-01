@@ -71,6 +71,12 @@ class Orchestrator:
 
     def run(self, goal: str) -> OrchestrationResult:
         """Orchestrate the agents to accomplish ``goal``."""
+        board = self.plan_board(goal)
+        self.drive(board)
+        return OrchestrationResult(goal=goal, blackboard=board, completed=board.all_complete())
+
+    def plan_board(self, goal: str) -> Blackboard:
+        """Create a board, ask the planner to decompose ``goal``, and record the plan."""
         board = Blackboard(goal)
         subtasks = self._planner.plan(goal)
         if self._validate_plan:
@@ -79,7 +85,10 @@ class Orchestrator:
             validate_plan(subtasks)
         board.set_plan(subtasks)
         board.post(Message(role=Role.PLANNER, content=f"planned {len(board.subtasks)} subtasks"))
+        return board
 
+    def drive(self, board: Blackboard) -> None:
+        """Drive a (possibly partially completed) board to completion or a stuck state."""
         # Bound total iterations to guarantee termination even on pathological plans.
         max_iterations = len(board.subtasks) * (self._max_retries + 1) + 1
         for _ in range(max_iterations):
@@ -90,12 +99,14 @@ class Orchestrator:
                 break  # no progress possible (unmet dependencies or exhausted retries)
             progressed = False
             for subtask in ready:
-                if self._attempt(board, subtask):
+                if self.attempt_subtask(board, subtask):
                     progressed = True
             if not progressed:
                 break
 
-        return OrchestrationResult(goal=goal, blackboard=board, completed=board.all_complete())
+    def attempt_subtask(self, board: Blackboard, subtask: Subtask) -> bool:
+        """Attempt one subtask (with bounded retries); return whether it was approved."""
+        return self._attempt(board, subtask)
 
     def _attempt(self, board: Blackboard, subtask: Subtask) -> bool:
         worker = self._select_worker(subtask)

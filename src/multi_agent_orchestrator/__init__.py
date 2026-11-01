@@ -6,6 +6,13 @@ loop and built-in agents live in their own modules.
 
 from __future__ import annotations
 
+from multi_agent_orchestrator.comparison import (
+    ApproachMetrics,
+    Comparison,
+    ComparisonSummary,
+    compare_goal,
+    compare_suite,
+)
 from multi_agent_orchestrator.core import (
     Blackboard,
     Critic,
@@ -17,11 +24,25 @@ from multi_agent_orchestrator.core import (
     Worker,
     WorkerResult,
 )
+from multi_agent_orchestrator.durable import (
+    CheckpointStatus,
+    CrashError,
+    inspect_checkpoint,
+    load_checkpoint,
+    resume_durable,
+    run_durable,
+    save_checkpoint,
+)
 
 __version__ = "0.1.0"
 
 __all__ = [
+    "ApproachMetrics",
     "Blackboard",
+    "CheckpointStatus",
+    "Comparison",
+    "ComparisonSummary",
+    "CrashError",
     "Critic",
     "Message",
     "Planner",
@@ -31,4 +52,11 @@ __all__ = [
     "Worker",
     "WorkerResult",
     "__version__",
+    "compare_goal",
+    "compare_suite",
+    "inspect_checkpoint",
+    "load_checkpoint",
+    "resume_durable",
+    "run_durable",
+    "save_checkpoint",
 ]

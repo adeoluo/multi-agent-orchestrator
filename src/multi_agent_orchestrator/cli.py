@@ -60,11 +60,65 @@ def build_parser() -> argparse.ArgumentParser:
     compare_parser.add_argument("goal", nargs="?", default=_DEFAULT_GOAL, help="The goal.")
     compare_parser.set_defaults(handler=_handle_compare)
 
+    measure_parser = subparsers.add_parser(
+        "measure", help="Measure single-agent vs multi-agent over a suite (cost and coverage)."
+    )
+    measure_parser.set_defaults(handler=_handle_measure)
+
+    durable_parser = subparsers.add_parser(
+        "durable", help="Interrupt a run, then resume it from its checkpoint."
+    )
+    durable_parser.add_argument("goal", nargs="?", default=_DEFAULT_GOAL, help="The goal.")
+    durable_parser.set_defaults(handler=_handle_durable)
+
     serve_parser = subparsers.add_parser("serve", help="Start the HTTP orchestration service.")
     serve_parser.add_argument("--host", default="127.0.0.1", help="Bind host.")
     serve_parser.add_argument("--port", type=int, default=8000, help="Bind port.")
     serve_parser.set_defaults(handler=_handle_serve)
     return parser
+
+
+def _handle_measure(args: argparse.Namespace) -> int:
+    from multi_agent_orchestrator.comparison import DEFAULT_SUITE, compare_suite
+
+    summary = compare_suite(list(DEFAULT_SUITE))
+    print("Single-agent vs multi-agent (worker calls | raw coverage | verified coverage):")
+    for row in summary.rows:
+        print(
+            f"  {row.parts}-part goal: "
+            f"calls {row.single.worker_calls} vs {row.multi.worker_calls}, "
+            f"raw {row.single.raw_coverage:.2f} vs {row.multi.raw_coverage:.2f}, "
+            f"verified {row.single.verified_coverage:.2f} vs {row.multi.verified_coverage:.2f}"
+        )
+    print(f"\n{summary.verdict()}")
+    return 0
+
+
+def _handle_durable(args: argparse.Namespace) -> int:
+    import tempfile
+    from pathlib import Path
+
+    from multi_agent_orchestrator.durable import (
+        CrashError,
+        inspect_checkpoint,
+        resume_durable,
+        run_durable,
+    )
+
+    orchestrator = _orchestrator()
+    with tempfile.TemporaryDirectory() as directory:
+        checkpoint = Path(directory) / "run.checkpoint"
+        try:
+            run_durable(orchestrator, args.goal, checkpoint, crash_after=1)
+        except CrashError as crash:
+            print(f"Interrupted: {crash}")
+        print(f"Checkpoint on disk: {inspect_checkpoint(checkpoint).format()}")
+        resumed = resume_durable(orchestrator, checkpoint)
+        uninterrupted = _orchestrator().run(args.goal)
+        identical = resumed.final_outputs() == uninterrupted.final_outputs()
+        print(f"Resumed: completed={resumed.completed} ({resumed.num_subtasks} subtasks)")
+        print(f"Resumed outputs identical to uninterrupted run: {identical}")
+    return 0 if resumed.completed else 1
 
 
 def _handle_serve(args: argparse.Namespace) -> int:
