@@ -12,7 +12,7 @@ ready subtasks on every iteration, so subtask throughput falls as the chain grow
 even though every subtask still completes. That is the honest cost of a simple,
 auditable from-scratch control loop.
 
-The data is synthetic and the loop is pure Python with offline deterministic
+The data is synthetic and the loop runs in-process with offline deterministic
 agents: these numbers measure coordination overhead, not real agent latency, and
 are not a comparison against a hosted multi-agent framework. The point is to show
 how this implementation scales, honestly.
@@ -94,7 +94,7 @@ def _peak_memory(goal: str) -> int:
 
 
 def main() -> None:
-    print("Synthetic goals; from-scratch pure-Python orchestration with offline agents.")
+    print("Synthetic goals; from-scratch Python orchestration with offline agents.")
     print("Measures coordination overhead, not real agent latency or a hosted framework.\n")
     header = f"{'subtasks':>9}{'sec/goal':>11}{'subtasks/sec':>14}{'peak MiB':>11}{'completed':>11}"
     print(header)

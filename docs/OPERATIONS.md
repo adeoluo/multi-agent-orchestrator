@@ -8,7 +8,7 @@ The operational contract of the orchestration service.
 uv run python -m multi_agent_orchestrator serve --host 0.0.0.0 --port 8000
 ```
 
-A standard-library HTTP server with **zero runtime dependencies**. It runs the
+A standard-library HTTP server. It runs the
 planner/workers/critic loop over a goal and returns the structured run.
 
 ## Endpoints

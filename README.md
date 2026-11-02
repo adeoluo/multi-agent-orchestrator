@@ -5,12 +5,10 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/adeoluo/multi-agent-orchestrator/actions/workflows/ci.yml"><img alt="Continuous integration" src="https://github.com/adeoluo/multi-agent-orchestrator/actions/workflows/ci.yml/badge.svg"></a>
-  <img alt="Coverage" src="https://img.shields.io/badge/coverage-95%25-brightgreen">
+  <a href="https://github.com/adeoluo/multi-agent-orchestrator/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/adeoluo/multi-agent-orchestrator/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/adeoluo/multi-agent-orchestrator/releases"><img alt="Release" src="https://img.shields.io/github/v/release/adeoluo/multi-agent-orchestrator"></a>
   <img alt="Python" src="https://img.shields.io/badge/python-3.11%20%7C%203.12-blue">
-  <img alt="Type checked" src="https://img.shields.io/badge/mypy-strict-blue">
-  <img alt="Runtime dependencies" src="https://img.shields.io/badge/runtime%20deps-0-brightgreen">
-  <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-green"></a>
 </p>
 
 ---
@@ -18,11 +16,10 @@
 ## Motivation
 
 A single agent doing everything in one pass is hard to steer and hard to verify. The
-multi-agent pattern - a **planner** that decomposes, specialized **workers** that execute,
-and a **critic** that reviews - decomposes the problem into inspectable, checkable steps.
+multi-agent pattern (a **planner** that decomposes, specialized **workers** that execute,
+and a **critic** that reviews) decomposes the problem into inspectable, checkable steps.
 This project builds that pattern **from scratch** on a **blackboard
-architecture**, with **zero runtime dependencies** and a fully deterministic, offline test
-suite.
+architecture**, with a fully deterministic, offline test suite.
 
 The key design choice is that agents never call each other directly. They coordinate only
 through a shared **blackboard**, which keeps them decoupled, makes dependency scheduling
@@ -31,41 +28,63 @@ and progress detection centralized, and renders the entire run an auditable hist
 ## Architecture
 
 <p align="center">
-  <img src="docs/architecture/architecture.svg" alt="System architecture" width="720">
+  <img src="docs/architecture/architecture.svg" alt="Architecture diagram" width="860">
 </p>
 
 The **orchestrator** runs the loop: it asks the **planner** to decompose the goal into
 subtasks on the **blackboard**, then repeatedly dispatches a **ready** subtask (one whose
 dependencies are complete) to a **worker**, has the **critic** review the result, and marks
-it complete on approval or retries with feedback on rejection - until everything is done or
+it complete on approval or retries with feedback on rejection, until everything is done or
 no progress can be made. See the [ADRs](docs/adr/) for key choices.
 
-## Components
+### Components
 
-- **Blackboard** - the shared source of truth: goal, plan, results, reviews, and an ordered
+- **Blackboard**: the shared source of truth: goal, plan, results, reviews, and an ordered
   message log. It computes which subtasks are ready and whether the run is complete.
-- **Planners (3)** - `KeywordPlanner` (splits on connectives), `TemplatePlanner`
+- **Planners (3)**: `KeywordPlanner` (splits on connectives), `TemplatePlanner`
   (role-prefixed chains), and `ExplicitPlanner` (a fixed plan).
-- **Workers** - execute one subtask each with dependency context; `ToolWorker` runs a
+- **Workers**: execute one subtask each with dependency context; `ToolWorker` runs a
   named tool, so workers can take real actions, not just transform text.
-- **Critic** - approves or rejects a worker's output, driving the retry loop.
-- **Orchestrator** - schedules, dispatches, and records; bounded iterations guarantee
+- **Critic**: approves or rejects a worker's output, driving the retry loop.
+- **Orchestrator**: schedules, dispatches, and records; bounded iterations guarantee
   termination, and it validates the plan (missing-dependency and **cycle detection**)
   before executing.
-- **Consensus** - `ConsensusOrchestrator` runs several workers on the *same* task and
+- **Consensus**: `ConsensusOrchestrator` runs several workers on the *same* task and
   aggregates by `majority_vote` or `unanimous`, a redundancy pattern complementing the
   division-of-labor orchestrator.
-- **Shared memory** - a namespaced `SharedMemory` scratchpad for agents.
-- **Observability** - `run_metrics` (attempts, retries, completion rate) and lossless
+- **Shared memory**: a namespaced `SharedMemory` scratchpad for agents.
+- **Observability**: `run_metrics` (attempts, retries, completion rate) and lossless
   `run_to_json` serialization of a whole run.
-- **Baseline** - a single-agent runner for contrast, so the value of coordination is
+- **Baseline**: a single-agent runner for contrast, so the value of coordination is
   concrete.
-- **Comparison** - an honest single-agent vs multi-agent measurement (worker-call cost, raw
+- **Comparison**: a single-agent vs multi-agent measurement (worker-call cost, raw
   coverage, and independently verified coverage) over a suite of multi-step goals.
-- **Durable execution** - checkpoint the blackboard after every completed subtask and resume
+- **Durable execution**: checkpoint the blackboard after every completed subtask and resume
   an interrupted orchestration from the last checkpoint to a byte-identical result.
 
-## Performance
+### Durable execution and crash recovery
+
+The blackboard **is** the entire run state (plan, results, reviews, and the ordered message
+log), so checkpointing it after every completed subtask makes an orchestration durable.
+`run_durable` drives the orchestrator one subtask at a time, writing a JSON checkpoint after
+each; if the process is interrupted, the checkpoint on disk is a consistent prefix of the work.
+`resume_durable` restores the board and finishes the remaining subtasks. Because the agents are
+deterministic and scheduling is stable, a resumed run reaches a state **byte-for-byte identical**
+to one that was never interrupted:
+
+```text
+$ python -m multi_agent_orchestrator durable
+Interrupted: interrupted after 1 of 3 subtasks
+Checkpoint on disk: interrupted: 1/3 subtasks checkpointed
+Resumed: completed=True (3 subtasks)
+Resumed outputs identical to uninterrupted run: True
+```
+
+`Blackboard.snapshot()` / `Blackboard.restore()` do the lossless serialization.
+
+## Results
+
+### Performance
 
 > Measured with `uv run python benchmarks/benchmark.py`.
 
@@ -74,7 +93,7 @@ no progress can be made. See the [ADRs](docs/adr/) for key choices.
 | Orchestrated 3-subtask runs (plan, dispatch, review) | ~46,000 runs / sec |
 | 3-worker consensus decisions | ~332,000 runs / sec |
 
-Coordination is pure in-memory bookkeeping, so the orchestrator's overhead is negligible
+Coordination is in-memory bookkeeping, so the orchestrator's overhead is negligible
 relative to the agent work it coordinates.
 
 ### Scale
@@ -93,38 +112,15 @@ Measured on this machine (`uv run python benchmarks/scale.py`):
 
 Every subtask still completes (completion rate 1.00), but subtask throughput falls
 super-linearly because the scheduler rescans the blackboard for ready subtasks on each
-iteration -- the honest cost of a simple, auditable control loop. These numbers are from
-synthetic goals on a pure-Python loop with offline deterministic agents: they measure
+iteration, which is the cost of a simple, auditable control loop. These numbers are from
+synthetic goals on an in-process Python loop with offline deterministic agents: they measure
 coordination overhead, **not** real agent latency, and are **not** a comparison against a
 hosted multi-agent framework.
 
-## Durable execution and crash recovery
-
-The blackboard **is** the entire run state -- plan, results, reviews, and the ordered message
-log -- so checkpointing it after every completed subtask makes an orchestration durable.
-`run_durable` drives the orchestrator one subtask at a time, writing a JSON checkpoint after
-each; if the process is interrupted, the checkpoint on disk is a consistent prefix of the work.
-`resume_durable` restores the board and finishes the remaining subtasks. Because the agents are
-deterministic and scheduling is stable, a resumed run reaches a state **byte-for-byte identical**
-to one that was never interrupted:
-
-```text
-$ python -m multi_agent_orchestrator durable
-Interrupted: interrupted after 1 of 3 subtasks
-Checkpoint on disk: interrupted: 1/3 subtasks checkpointed
-Resumed: completed=True (3 subtasks)
-Resumed outputs identical to uninterrupted run: True
-```
-
-The test suite proves this at **every** crash point: for a three-subtask goal, interrupting
-after 1, 2, or 3 subtasks and resuming yields a blackboard whose full snapshot equals the
-uninterrupted run's. `Blackboard.snapshot()` / `Blackboard.restore()` do the lossless
-serialization.
-
-## Single-agent baseline vs multi-agent
+### Single-agent baseline vs multi-agent
 
 `benchmarks/compare.py` runs the *same* goals through the single-agent baseline and the
-planner/workers/critic orchestrator and measures the trade-off honestly (reproduce with
+planner/workers/critic orchestrator and measures the trade-off (reproduce with
 `uv run python benchmarks/compare.py`). **worker calls** is the cost; **raw coverage** is the
 fraction of a goal's parts mentioned anywhere in the output; **verified coverage** is the
 fraction delivered as an independently *reviewed*, approved unit.
@@ -138,18 +134,44 @@ fraction delivered as an independently *reviewed*, approved unit.
 | 8 | 1 | 8 | 1.00 / 1.00 | 0.00 / 1.00 | yes |
 | **totals** | **5** | **19** | tie | **0 / 19** | n/a |
 
-**Honest reading.** On these decomposable goals the two approaches have **identical raw
-coverage** -- a single pass that echoes the whole goal already mentions every part -- and the
+**Reading the table.** On these decomposable goals the two approaches have **identical raw
+coverage** (a single pass that echoes the whole goal already mentions every part), and the
 orchestrator costs **3.8x the worker calls** (19 vs 5). Coordination does **not** add raw
 content here. Its payoff is **verification and per-part reliability**: the multi-agent runs
 delivered 19 independently reviewed sub-deliverables versus 0 for the single agent, because the
 baseline has no critic. On a one-part goal the two are equivalent and coordination is pure
-overhead. The win from coordination is structural (decomposition + review), not raw text, and
-it is paid for in extra worker calls -- which is exactly the trade-off to weigh before reaching
+overhead. The benefit of coordination is structural (decomposition plus review), not raw text, and
+it is paid for in extra worker calls, which is the trade-off to weigh before reaching
 for a multi-agent design. These are deterministic offline agents, so the numbers measure
 coordination structure and cost, **not** model quality.
 
-## Demonstration
+## Quickstart
+
+```bash
+git clone https://github.com/adeoluo/multi-agent-orchestrator.git && cd multi-agent-orchestrator
+make setup                    # install dev tooling + pre-commit hooks
+make all                      # lint + type-check + test
+
+python -m multi_agent_orchestrator run "research the topic and then write the report"
+python -m multi_agent_orchestrator compare
+python -m multi_agent_orchestrator measure   # single-agent vs multi-agent cost/coverage
+python -m multi_agent_orchestrator durable    # interrupt a run, then resume it identically
+```
+
+## Usage
+
+### Library
+
+```python
+from multi_agent_orchestrator.orchestrator import Orchestrator
+from multi_agent_orchestrator.agents import KeywordPlanner, EchoWorker, LengthCritic
+
+orchestrator = Orchestrator(KeywordPlanner(chain_dependencies=True), [EchoWorker()], LengthCritic())
+result = orchestrator.run("do research and then write it up")
+print(result.completed, result.final_outputs())
+```
+
+### Demonstration
 
 Fully offline, via `python -m multi_agent_orchestrator compare`:
 
@@ -170,44 +192,9 @@ single-agent: 1 undifferentiated pass; multi-agent: 3 planned, specialized, revi
 The multi-agent run decomposes the goal into three dependency-ordered subtasks; each worker
 sees its predecessor's output (`given task-0`), and every step passes critic review.
 
-## Quickstart
+### HTTP service
 
-```bash
-git clone https://github.com/adeoluo/multi-agent-orchestrator.git && cd multi-agent-orchestrator
-make setup                    # install dev tooling + pre-commit hooks
-make all                      # lint + type-check + test
-
-python -m multi_agent_orchestrator run "research the topic and then write the report"
-python -m multi_agent_orchestrator compare
-python -m multi_agent_orchestrator measure   # single-agent vs multi-agent cost/coverage
-python -m multi_agent_orchestrator durable    # interrupt a run, then resume it identically
-```
-
-Use the library directly:
-
-```python
-from multi_agent_orchestrator.orchestrator import Orchestrator
-from multi_agent_orchestrator.agents import KeywordPlanner, EchoWorker, LengthCritic
-
-orchestrator = Orchestrator(KeywordPlanner(chain_dependencies=True), [EchoWorker()], LengthCritic())
-result = orchestrator.run("do research and then write it up")
-print(result.completed, result.final_outputs())
-```
-
-## Design decisions
-
-- **Blackboard coordination, not direct agent calls.** A shared workspace decouples the
-  agents, centralizes scheduling and progress detection, and makes the run auditable.
-  ([ADR-0002](docs/adr/0002-blackboard-coordination.md))
-- **Critic-driven retries with bounded iterations.** Rejected work is retried with feedback
-  up to a limit, and total iterations are bounded so the loop always terminates.
-  ([ADR-0003](docs/adr/0003-critic-retry-loop.md))
-- **Structural `Protocol` agents.** Planner, Worker, and Critic are protocols, so
-  deterministic stubs and model-backed agents are interchangeable.
-
-## Running the service
-
-A dependency-free HTTP service runs the planner/workers/critic loop over a goal:
+A standard-library HTTP service runs the planner/workers/critic loop over a goal:
 
 ```bash
 python -m multi_agent_orchestrator serve --port 8000
@@ -219,13 +206,51 @@ curl -s -X POST localhost:8000/compare -d '{"goal": "summarize and format"}'
 
 `POST /run` returns the plan, each worker's output, the critic's reviews, and the full
 blackboard message log; `POST /compare` contrasts the single-agent and multi-agent
-structure. A production-style stress benchmark (`uv run python benchmarks/stress.py`) reports
-throughput and p50/p95/p99 latency; with offline agents a single core serves tens of
-thousands of runs per second, and the service is scaled with processes because the
-pure-Python loop is bound by the global interpreter lock. See the
-[operations guide](docs/OPERATIONS.md), the [scaling and tradeoffs](docs/SCALING.md)
-The service also exposes `GET /ready` (readiness) and `GET /metrics` (per-route request, error, and latency metrics in Prometheus text format).
-document, and the [case study](docs/CASE_STUDY.md).
+structure. The service also exposes `GET /ready` (readiness) and `GET /metrics` (per-route
+request, error, and latency metrics in Prometheus text format). A production-style stress
+benchmark (`uv run python benchmarks/stress.py`) reports throughput and p50/p95/p99 latency;
+with offline agents a single core serves tens of thousands of runs per second, and the
+service is scaled with processes because the CPU-bound Python loop is limited by the global
+interpreter lock. See the [operations guide](docs/OPERATIONS.md), the
+[scaling and tradeoffs](docs/SCALING.md) document, and the [case study](docs/CASE_STUDY.md).
+
+## Design decisions
+
+- **Blackboard coordination, not direct agent calls.** A shared workspace decouples the
+  agents, centralizes scheduling and progress detection, and makes the run auditable.
+  ([ADR-0002](docs/adr/0002-blackboard-coordination.md))
+- **Critic-driven retries with bounded iterations.** Rejected work is retried with feedback
+  up to a limit, and total iterations are bounded so the loop always terminates.
+  ([ADR-0003](docs/adr/0003-critic-retry-loop.md))
+- **Structural `Protocol` agents.** Planner, Worker, and Critic are protocols, so
+  deterministic stubs and model-backed agents are interchangeable.
+- **Recording decisions.** ([ADR-0001](docs/adr/0001-record-architecture-decisions.md))
+
+## Testing
+
+```bash
+make test                     # uv run pytest
+make coverage                 # pytest with an 80% coverage gate
+```
+
+The suite has 81 deterministic, offline tests across nine modules in `tests/`:
+
+- **Core and blackboard** (`test_core.py`, `test_orchestrator.py`): ready-subtask scheduling,
+  the orchestration loop, the built-in agents, and critic-driven retries.
+- **Graph validation and metrics** (`test_graph_metrics.py`): missing dependencies, cycle
+  detection, and run metrics.
+- **Durable execution** (`test_durable.py`): for a three-subtask goal, interrupting after 1, 2,
+  or 3 subtasks and resuming yields a blackboard whose full snapshot equals the uninterrupted
+  run's.
+- **Consensus, tools, and planners** (`test_consensus_extra.py`), **shared memory and
+  serialization** (`test_memory_trace.py`), and the **single-agent comparison**
+  (`test_comparison.py`).
+- **CLI and HTTP service** (`test_cli.py`, `test_service.py`): command output and the request
+  handler layer.
+
+CI (`.github/workflows/ci.yml`) runs `ruff format --check`, `ruff check`, `mypy src`, and
+`pytest` with an 80% coverage gate on Python 3.11 and 3.12, then builds the package and the
+Docker image.
 
 ## Responsible AI
 
@@ -251,5 +276,4 @@ document, and the [case study](docs/CASE_STUDY.md).
 
 ## License
 
-[MIT](LICENSE). Part of an artificial intelligence engineering portfolio by
-[adeoluo](https://github.com/adeoluo).
+Released under the [MIT License](LICENSE).
