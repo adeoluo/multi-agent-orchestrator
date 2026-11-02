@@ -1,4 +1,4 @@
-"""A dependency-free HTTP service exposing the orchestrator.
+"""A standard-library HTTP service exposing the orchestrator.
 
 The service runs the planner/workers/critic orchestration over a goal and
 returns the structured run (subtasks, outputs, blackboard messages) plus

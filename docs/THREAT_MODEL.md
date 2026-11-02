@@ -18,7 +18,7 @@
 | Rogue worker action | A side-effecting worker performs a harmful action | Unexpected effects | Built-in workers are pure; users must sandbox and authorize side-effecting workers |
 | Blackboard tampering | A buggy agent corrupts shared state | Wrong results | Immutable record types; the blackboard mediates all writes and records every post |
 | Sensitive data exposure | Model-backed agents write secrets to the blackboard | Data leak if exported | Documented guidance; the blackboard is in-memory and not exported by default |
-| Supply-chain compromise | Malicious dependency | Code execution | Zero runtime dependencies; Dependabot and CodeQL in continuous integration |
+| Supply-chain compromise | Malicious dependency | Code execution | No third-party runtime packages; Dependabot and CodeQL in continuous integration |
 
 ## Residual risk
 
