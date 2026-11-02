@@ -31,11 +31,16 @@ and progress detection centralized, and renders the entire run an auditable hist
   <img src="docs/architecture/architecture.svg" alt="Architecture diagram" width="860">
 </p>
 
-The **orchestrator** runs the loop: it asks the **planner** to decompose the goal into
-subtasks on the **blackboard**, then repeatedly dispatches a **ready** subtask (one whose
-dependencies are complete) to a **worker**, has the **critic** review the result, and marks
-it complete on approval or retries with feedback on rejection, until everything is done or
-no progress can be made. See the [ADRs](docs/adr/) for key choices.
+<sub>Legend: amber = entry points and external systems, indigo = core logic, green = data and state, blue = validation and control, grey = observability and outputs.</sub>
+
+A goal arrives from the CLI or the HTTP service, which validates its length. The
+**orchestrator** asks the **planner** to decompose the goal into subtasks, checks the plan for
+missing dependencies and cycles, and records it on the **blackboard**. It then repeatedly
+dispatches a **ready** subtask (one whose dependencies are complete) to a **worker**, has the
+**critic** review the result, and marks it complete on approval or retries with feedback on
+rejection, until everything is done or the iteration bound is reached. The blackboard feeds
+checkpoints for durable runs, `run_metrics`, and the JSON run record; the comparison runs the
+same goals through the single-agent baseline. See the [ADRs](docs/adr/) for key choices.
 
 ### Components
 

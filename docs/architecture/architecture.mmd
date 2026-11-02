@@ -1,16 +1,3 @@
----
-title: System Architecture - Multi-Agent Orchestrator
-config:
-  theme: base
-  themeVariables:
-    fontFamily: "Inter, system-ui, sans-serif"
-    primaryColor: "#F8FAFC"
-    primaryBorderColor: "#1E293B"
-    primaryTextColor: "#1E293B"
-    lineColor: "#64748B"
-    clusterBkg: "#EEF2FF"
-    clusterBorder: "#94A3B8"
----
 flowchart TD
     classDef edge     fill:#F59E0B,stroke:#1E293B,color:#1E293B,stroke-width:1px;
     classDef core     fill:#6366F1,stroke:#1E293B,color:#ffffff,stroke-width:1px;
@@ -18,30 +5,58 @@ flowchart TD
     classDef control  fill:#0EA5E9,stroke:#1E293B,color:#ffffff,stroke-width:1px;
     classDef obs      fill:#CBD5E1,stroke:#1E293B,color:#1E293B,stroke-width:1px;
 
-    Client([Client]):::edge
+    Client(["HTTP client<br/>JSON goal"]):::edge
+    Cli(["CLI<br/>run, compare, measure, durable, serve"]):::edge
 
-    subgraph Edge["Service layer (stdlib HTTP, stateless)"]
+    subgraph Io["Interfaces (stdlib HTTP, stateless)"]
         direction TB
-        Router["Router<br/>/health | /run | /compare"]:::core
-        Validate["Validation<br/>bound: goal length"]:::control
+        Router["Request router<br/>/health, /run, /compare"]:::core
+        Validate["Request validation<br/>goal up to 2000 chars"]:::control
     end
 
-    subgraph Orchestrate["Orchestration loop"]
+    subgraph Loop["Core logic (orchestration)"]
         direction TB
-        Planner["Planner<br/>goal to subtask graph"]:::core
-        Workers["Workers<br/>echo, uppercase, ..."]:::core
-        Critic["Critic<br/>review before accept"]:::core
+        Orch["Orchestrator loop<br/>bounded iterations"]:::core
+        Planner["Planners<br/>keyword, template, explicit"]:::core
+        Graph["Plan validation<br/>missing deps, cycle detection"]:::control
+        Workers["Workers<br/>built-in and ToolWorker"]:::core
+        Critic["Critic<br/>approve or retry with feedback"]:::control
+        Consensus["ConsensusOrchestrator<br/>majority vote, unanimous"]:::core
+        Baseline["Single-agent baseline"]:::core
     end
 
-    Blackboard[(Blackboard<br/>subtasks, results, messages)]:::data
-    Trace["Structured run<br/>plan, outputs, message log"]:::obs
+    subgraph State["Data and state"]
+        direction TB
+        Board[("Blackboard<br/>plan, results, reviews, message log")]:::data
+        Memory[("SharedMemory<br/>namespaced scratchpad")]:::data
+        Checkpoint[("JSON checkpoints<br/>run_durable, resume_durable")]:::data
+    end
 
-    Client -->|JSON request| Router --> Validate
-    Validate -->|goal| Planner
-    Planner -->|subtasks| Blackboard
-    Blackboard -->|ready subtask| Workers
+    subgraph Obs["Evaluation and observability"]
+        direction TB
+        RunMetrics["run_metrics<br/>attempts, retries, completion"]:::obs
+        Trace["run_to_json<br/>lossless run record"]:::obs
+        Compare["Comparison report<br/>worker calls, verified coverage"]:::obs
+        Prom["/metrics<br/>per-route counts, latency"]:::obs
+    end
+
+    Client -->|POST goal| Router
+    Cli -->|goal| Orch
+    Cli -->|serve| Router
+    Router --> Validate
+    Validate -->|goal| Orch
+    Orch -->|decompose| Planner
+    Planner -->|subtasks| Graph
+    Graph -->|valid plan| Board
+    Board -.->|ready subtask| Orch
+    Orch -->|dispatch| Workers
     Workers -->|result| Critic
-    Critic -->|approved / rejected| Blackboard
-    Blackboard -->|dependencies met| Workers
-    Blackboard -->|final outputs| Router -->|JSON response| Client
-    Blackboard -.-> Trace
+    Critic -->|approved or rejected| Board
+    Workers -.->|optional scratchpad| Memory
+    Consensus -->|same task| Workers
+    Board -.->|after each subtask| Checkpoint
+    Board -.-> RunMetrics
+    Board -.-> Trace
+    Baseline -->|single pass| Compare
+    Orch -->|multi-agent run| Compare
+    Router -.->|timings| Prom
