@@ -219,6 +219,22 @@ service is scaled with processes because the CPU-bound Python loop is limited by
 interpreter lock. See the [operations guide](docs/OPERATIONS.md), the
 [scaling and tradeoffs](docs/SCALING.md) document, and the [case study](docs/CASE_STUDY.md).
 
+### Demos
+
+Recorded from real runs with [vhs](https://github.com/charmbracelet/vhs); each tape is in `docs/demo/`.
+
+A planner, worker, and critic completing a task.
+
+<p align="center">
+  <img src="docs/demo/run.gif" alt="A planner, worker, and critic completing a task" width="860">
+</p>
+
+Orchestration strategies compared, then a durable run.
+
+<p align="center">
+  <img src="docs/demo/compare.gif" alt="Orchestration strategies compared, then a durable run" width="860">
+</p>
+
 ## Design decisions
 
 - **Blackboard coordination, not direct agent calls.** A shared workspace decouples the
