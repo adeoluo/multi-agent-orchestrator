@@ -1,0 +1,46 @@
+# Multi-Agent Orchestrator
+
+> A multi-agent orchestrator built from scratch: a planner decomposes a goal, specialized workers execute subtasks, and a critic verifies, coordinated over a shared blackboard.
+
+Languages: Python. License: MIT. Source: https://github.com/adeoluo/multi-agent-orchestrator
+
+## Docs
+
+- [README](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/README.md): motivation, architecture, results, quickstart, usage, design decisions, testing, responsible ai, limitations, roadmap
+- [AGENTS.md](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/AGENTS.md): layout, commands and conventions for changing the code
+- [Architecture diagram](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/docs/architecture/architecture.mmd): Mermaid source of the component diagram
+- [End-to-End Case Study - Planning, Working, and Critiquing a Goal](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/docs/CASE_STUDY.md)
+- [Data Card - Multi-Agent Orchestrator](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/docs/DATA_CARD.md)
+- [Definition of Done](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/docs/DEFINITION_OF_DONE.md)
+- [Evaluation Report - Multi-Agent Orchestrator](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/docs/EVALUATION_REPORT.md)
+- [System Card - Multi-Agent Orchestrator](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/docs/MODEL_CARD.md)
+- [Operations Guide - Multi-Agent Orchestrator](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/docs/OPERATIONS.md)
+- [Scaling and Design Tradeoffs - Multi-Agent Orchestrator](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/docs/SCALING.md)
+- [Threat Model - Multi-Agent Orchestrator](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/docs/THREAT_MODEL.md)
+- [ADR-0001: Record architecture decisions](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/docs/adr/0001-record-architecture-decisions.md)
+- [ADR-0002: Blackboard coordination instead of direct agent calls](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/docs/adr/0002-blackboard-coordination.md)
+- [ADR-0003: A critic-driven retry loop with bounded iterations](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/docs/adr/0003-critic-retry-loop.md)
+- [ADR-NNNN: <short title>](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/docs/adr/template.md)
+- [Changelog](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/CHANGELOG.md): release history
+
+## Source
+
+- [src/multi_agent_orchestrator/__init__.py](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/src/multi_agent_orchestrator/__init__.py): Multi-Agent Orchestrator - planner, workers, and a critic over a blackboard.
+- [src/multi_agent_orchestrator/agents.py](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/src/multi_agent_orchestrator/agents.py): Deterministic, offline built-in agents.
+- [src/multi_agent_orchestrator/agents_extra.py](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/src/multi_agent_orchestrator/agents_extra.py): A tool-using worker and additional planners.
+- [src/multi_agent_orchestrator/baseline.py](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/src/multi_agent_orchestrator/baseline.py): A single-agent baseline for comparison.
+- [src/multi_agent_orchestrator/cli.py](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/src/multi_agent_orchestrator/cli.py): Command-line interface for the multi-agent orchestrator.
+- [src/multi_agent_orchestrator/comparison.py](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/src/multi_agent_orchestrator/comparison.py): An honest single-agent vs multi-agent comparison over multi-step workloads.
+- [src/multi_agent_orchestrator/consensus.py](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/src/multi_agent_orchestrator/consensus.py): Consensus coordination: many workers answer the same task, then aggregate.
+- [src/multi_agent_orchestrator/core/__init__.py](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/src/multi_agent_orchestrator/core/__init__.py): Core abstractions for multi-agent orchestration.
+- [src/multi_agent_orchestrator/core/agents.py](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/src/multi_agent_orchestrator/core/agents.py): Agent roles as protocols.
+- [src/multi_agent_orchestrator/core/blackboard.py](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/src/multi_agent_orchestrator/core/blackboard.py): The shared blackboard: the single source of truth for a run.
+- [src/multi_agent_orchestrator/core/types.py](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/src/multi_agent_orchestrator/core/types.py): Core types for multi-agent coordination.
+- [src/multi_agent_orchestrator/durable.py](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/src/multi_agent_orchestrator/durable.py): Durable orchestration: checkpoint the blackboard and resume an interrupted run.
+- [src/multi_agent_orchestrator/graph.py](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/src/multi_agent_orchestrator/graph.py): Dependency-graph validation.
+- [src/multi_agent_orchestrator/memory.py](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/src/multi_agent_orchestrator/memory.py): Shared memory for agents.
+- [src/multi_agent_orchestrator/metrics.py](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/src/multi_agent_orchestrator/metrics.py): Metrics over an orchestrated run.
+- [src/multi_agent_orchestrator/observability.py](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/src/multi_agent_orchestrator/observability.py): In-process request metrics for the HTTP service.
+- [src/multi_agent_orchestrator/orchestrator.py](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/src/multi_agent_orchestrator/orchestrator.py): The orchestrator: the coordination loop over planner, workers, and critic.
+- [src/multi_agent_orchestrator/service.py](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/src/multi_agent_orchestrator/service.py): A standard-library HTTP service exposing the orchestrator.
+- [src/multi_agent_orchestrator/trace.py](https://github.com/adeoluo/multi-agent-orchestrator/blob/main/src/multi_agent_orchestrator/trace.py): Serializing an orchestrated run to JSON.
