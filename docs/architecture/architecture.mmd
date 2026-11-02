@@ -5,58 +5,44 @@ flowchart LR
     classDef control  fill:#0EA5E9,stroke:#1E293B,color:#ffffff,stroke-width:1px;
     classDef obs      fill:#CBD5E1,stroke:#1E293B,color:#1E293B,stroke-width:1px;
 
-    Client(["HTTP client<br/>JSON goal"]):::edge
-    Cli(["CLI<br/>run, compare, measure, durable, serve"]):::edge
-
-    subgraph Io["Interfaces (stdlib HTTP, stateless)"]
+    subgraph Interfaces["Interfaces"]
         direction TB
-        Router["Request router<br/>/health, /run, /compare"]:::core
-        Validate["Request validation<br/>goal up to 2000 chars"]:::control
+        Cli(["CLI<br/>run, compare, durable"]):::edge
+        Client(["HTTP client<br/>JSON goal"]):::edge
+        Router["HTTP router<br/>/run, /compare"]:::core
+        Validate["Validation<br/>goal up to 2000 chars"]:::control
+        Cli ~~~ Client --> Router --> Validate
     end
 
-    subgraph Loop["Core logic (orchestration)"]
+    subgraph Core["Orchestration"]
         direction TB
         Orch["Orchestrator loop<br/>bounded iterations"]:::core
-        Planner["Planners<br/>keyword, template, explicit"]:::core
-        Graph["Plan validation<br/>missing deps, cycle detection"]:::control
-        Workers["Workers<br/>built-in and ToolWorker"]:::core
-        Critic["Critic<br/>approve or retry with feedback"]:::control
-        Consensus["ConsensusOrchestrator<br/>majority vote, unanimous"]:::core
-        Baseline["Single-agent baseline"]:::core
+        Planner["Planners<br/>keyword, template, fixed"]:::core
+        Graph["Plan validation<br/>missing deps, cycles"]:::control
+        Workers["Workers<br/>built-in, ToolWorker"]:::core
+        Critic["Critic<br/>approve or retry"]:::control
+        Consensus["Consensus<br/>majority, unanimous"]:::core
+        Orch --> Planner --> Graph ~~~ Workers --> Critic ~~~ Consensus
     end
 
     subgraph State["Data and state"]
         direction TB
-        Board[("Blackboard<br/>plan, results, reviews, message log")]:::data
-        Memory[("SharedMemory<br/>namespaced scratchpad")]:::data
-        Checkpoint[("JSON checkpoints<br/>run_durable, resume_durable")]:::data
+        Board[("Blackboard<br/>plan, results, log")]:::data
+        Memory[("SharedMemory<br/>agent scratchpad")]:::data
+        Checkpoint[("JSON checkpoints<br/>durable resume")]:::data
+        Board ~~~ Memory ~~~ Checkpoint
     end
 
     subgraph Obs["Evaluation and observability"]
         direction TB
-        RunMetrics["run_metrics<br/>attempts, retries, completion"]:::obs
+        RunMetrics["run_metrics<br/>attempts, retries"]:::obs
         Trace["run_to_json<br/>lossless run record"]:::obs
-        Compare["Comparison report<br/>worker calls, verified coverage"]:::obs
-        Prom["/metrics<br/>per-route counts, latency"]:::obs
+        Compare["Comparison<br/>vs single-agent baseline"]:::obs
+        Prom["/metrics<br/>Prometheus text"]:::obs
+        RunMetrics ~~~ Trace ~~~ Compare ~~~ Prom
     end
 
-    Client -->|POST goal| Router
-    Cli -->|serve| Router
-    Cli -->|goal| Orch
-    Router -.->|checks| Validate
-    Router -->|goal| Orch
-    Orch -->|decompose| Planner
-    Orch -.->|validate plan| Graph
-    Orch -->|record plan| Board
-    Orch -->|dispatch ready| Workers
-    Consensus -->|same task| Workers
-    Orch -->|review result| Critic
-    Workers -->|result| Board
-    Critic -->|approve or reject| Board
-    Workers -.->|optional| Memory
-    Orch -.->|board snapshot| Checkpoint
-    Board -.-> RunMetrics
-    Board -.-> Trace
-    Baseline -->|single pass| Compare
-    Orch -->|multi-agent run| Compare
-    Router -.->|timings| Prom
+    Interfaces -->|goal| Core
+    Core -->|plan, verdicts| State
+    State -.->|run state| Obs
+    Core -->|runs, timings| Obs
