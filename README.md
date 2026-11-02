@@ -235,6 +235,12 @@ Orchestration strategies compared, then a durable run.
   <img src="docs/demo/compare.gif" alt="Orchestration strategies compared, then a durable run" width="860">
 </p>
 
+The HTTP service running a two-step goal through planner, worker, and critic.
+
+<p align="center">
+  <img src="docs/demo/http.gif" alt="The HTTP service running a two-step goal through planner, worker, and critic" width="860">
+</p>
+
 ## Design decisions
 
 - **Blackboard coordination, not direct agent calls.** A shared workspace decouples the
