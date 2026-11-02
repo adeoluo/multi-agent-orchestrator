@@ -136,7 +136,7 @@ fraction delivered as an independently *reviewed*, approved unit.
 | 3 | 1 | 3 | 1.00 / 1.00 | 0.00 / 1.00 | yes |
 | 5 | 1 | 5 | 1.00 / 1.00 | 0.00 / 1.00 | yes |
 | 8 | 1 | 8 | 1.00 / 1.00 | 0.00 / 1.00 | yes |
-| **totals** | **5** | **19** | tie | **0 / 19** | — |
+| **totals** | **5** | **19** | tie | **0 / 19** | n/a |
 
 **Honest reading.** On these decomposable goals the two approaches have **identical raw
 coverage** -- a single pass that echoes the whole goal already mentions every part -- and the
