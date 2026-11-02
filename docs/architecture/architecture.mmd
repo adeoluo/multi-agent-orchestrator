@@ -1,4 +1,4 @@
-flowchart TD
+flowchart LR
     classDef edge     fill:#F59E0B,stroke:#1E293B,color:#1E293B,stroke-width:1px;
     classDef core     fill:#6366F1,stroke:#1E293B,color:#ffffff,stroke-width:1px;
     classDef data     fill:#10B981,stroke:#1E293B,color:#ffffff,stroke-width:1px;
@@ -41,20 +41,20 @@ flowchart TD
     end
 
     Client -->|POST goal| Router
-    Cli -->|goal| Orch
     Cli -->|serve| Router
-    Router --> Validate
-    Validate -->|goal| Orch
+    Cli -->|goal| Orch
+    Router -.->|checks| Validate
+    Router -->|goal| Orch
     Orch -->|decompose| Planner
-    Planner -->|subtasks| Graph
-    Graph -->|valid plan| Board
-    Board -.->|ready subtask| Orch
-    Orch -->|dispatch| Workers
-    Workers -->|result| Critic
-    Critic -->|approved or rejected| Board
-    Workers -.->|optional scratchpad| Memory
+    Orch -.->|validate plan| Graph
+    Orch -->|record plan| Board
+    Orch -->|dispatch ready| Workers
     Consensus -->|same task| Workers
-    Board -.->|after each subtask| Checkpoint
+    Orch -->|review result| Critic
+    Workers -->|result| Board
+    Critic -->|approve or reject| Board
+    Workers -.->|optional| Memory
+    Orch -.->|board snapshot| Checkpoint
     Board -.-> RunMetrics
     Board -.-> Trace
     Baseline -->|single pass| Compare
