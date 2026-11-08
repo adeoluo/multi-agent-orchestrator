@@ -1,10 +1,22 @@
 cff-version: 1.2.0
-message: "If you use this work, please cite it."
-title: "Multi Agent Orchestrator"
+message: "If you use this software, please cite it as below."
+type: software
+title: "Multi-Agent Orchestrator"
+abstract: "A multi-agent orchestrator from scratch: a planner decomposes a task, workers execute subtasks, and a critic verifies, over a shared blackboard."
 authors:
   - family-names: "Ogunnoiki"
     given-names: "Adeolu"
-version: 0.1.0
-date-released: 2026-01-01
+version: "0.1.0"
+date-released: "2026-11-02"
 license: MIT
+repository-code: "https://github.com/adeoluo/multi-agent-orchestrator"
 url: "https://github.com/adeoluo/multi-agent-orchestrator"
+keywords:
+  - "agents"
+  - "ai"
+  - "blackboard"
+  - "from-scratch"
+  - "llm"
+  - "multi-agent"
+  - "orchestration"
+  - "python"
